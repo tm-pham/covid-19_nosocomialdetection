@@ -27,7 +27,7 @@ nosocomial.simulation <- function(n_max=1000,
   # Infection is equally likely on each day in hospital
   t_inf <- sapply(1:length(t_los), function(x) sample(1:(t_los[x]-1),1))
   # Times for symptom onset according to inc_distr
-  # Accounts for asymptomatic cases 
+  # Accounts for asymptomatic cases: inc = 10000
   inc <- sample(c(1:length(inc_distr),10000), size=length(t_los), prob=c(inc_distr,1-sum(inc_distr)), replace=TRUE)
   t_inc <- t_inf + inc
   # Patients with symptom onset before discharge
