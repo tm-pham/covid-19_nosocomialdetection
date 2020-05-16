@@ -1,36 +1,33 @@
 # ================================================================= #
 # Run file for noscomial detection
 # ================================================================= #
-setwd("/home/thi.mui.pham/covid-19/nosocomialtransmission/code/")
+setwd("/home/thi.mui.pham/covid-19/nosocomialtransmission/nosocomialdetection/code/")
 source(file="nosocomialdetection_functions.R")
 
 
-n<-20 # maximum length of stay
+maxday<-50 
 cutoff <-10 # detection cutoff for definition of nosocomial cases
 
-# Exponential LOS distribution
-meanlos <- 10
-cum_prob_los <- pexp(1:n,1/meanlos)
-prob_los <- cum_prob_los-c(0,cum_prob_los[1:(n-1)])
-
-# Lognormal LOS distribution
-# "Data" of COVID-19 patients from GGD Amsterdam
-# meanlos <- 9
-# sdlos <- 0.9
-# cum_prob_los <- plnorm(1:n, meanlog=log(meanlos), sdlog=sdlos)
-# prob_los<-cum_prob_los-c(0,cum_prob_los[1:(n-1)])
-
 # Probability distribution for incubation period
-prob_inc <- c(0.05,0.1,0.15,0.2,0.1,rep(0.0,15))
+p1<-1.621
+p2<-0.418
+cum_prob_inc <- plnorm(1:maxday,p1,p2)
+prob_inc <- cum_prob_inc-c(0,cum_prob_inc[1:(maxday-1)])
+
+# Probality distribution for LOS
+meanlos <- 5
+cum_prob_los <- pexp(1:maxday,1/meanlos)
+prob_los <- cum_prob_los-c(0,cum_prob_los[1:(maxday-1)])
+discrete.meanlos<-sum(prob_los*(1:maxday))
 
 # Mui's function
 nosocomial.detection(cutoff,prob_inc,prob_los)
 # Ben's function
-calc_prob_infection_meets_def_nosocomial(cutoff,prob_los,prob_inc)
+calc_prob_infection_meets_def_nosocomial(cutoff,prob_inc,prob_los)
 
 # Simulation
 sim <- nosocomial.simulation(n_max=10000,
                              los_distr=prob_los, 
-                             inc_distr=prob_latent, 
+                             inc_distr=prob_inc, 
                              cutoff=cutoff)
 sim$res

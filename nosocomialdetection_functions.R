@@ -17,7 +17,8 @@
 # ================================================================= #
 nosocomial.simulation <- function(n_max=1000, 
                                   los_distr, 
-                                  inc_distr, 
+                                  inc_distr,
+                                  delay_distr=NULL,
                                   cutoff=10, 
                                   seed=12345){
   set.seed(seed)
@@ -25,24 +26,54 @@ nosocomial.simulation <- function(n_max=1000,
   t_los <- sample(1:length(los_distr), size=n_max, prob=los_distr, replace=TRUE)
   # Currently: all patients get infected
   # Infection is equally likely on each day in hospital
-  t_inf <- sapply(1:length(t_los), function(x) sample(1:(t_los[x]-1),1))
+  t_inf <- ceiling(runif(1)*t_los)
   # Times for symptom onset according to inc_distr
   # Accounts for asymptomatic cases: incubation time = 10000
-  inc <- sample(c(1:length(inc_distr),10000), size=length(t_los), prob=c(inc_distr,1-sum(inc_distr)), replace=TRUE)
+  if(sum(inc_distr)==1){
+    inc <- sample(1:length(inc_distr), size=length(t_los), prob=inc_distr, replace=TRUE)
+  }else{
+    inc <- sample(c(1:length(inc_distr),10000), size=length(t_los), prob=c(inc_distr,1-sum(inc_distr)), replace=TRUE)
+  }
   t_inc <- t_inf + inc
+  # Delay between symptom onset and study enrolment
+  delay <- sample(1:length(delay_distr),size=length(t_los),prob=delay_distr,replace=TRUE)
+  t_detection <- t_inc + delay
   # Patients with symptom onset before discharge
-  ind_inc_before_discharge <- which(t_inc<=t_los)
+  ind_before_discharge <- which(t_detection<=t_los)
   # Patients with symptom onset after cutoff 
-  ind_inc_after_cutoff <- which(t_inc>=cutoff)
+  ind_after_cutoff <- which(t_detection>=cutoff)
   # Patients that meet all criteria above
-  ind <- intersect(ind_inc_before_discharge, ind_inc_after_cutoff)
+  ind <- intersect(ind_before_discharge, ind_after_cutoff)
   res <- length(ind)/length(t_los)
   return(list(res=res,
               t_los=t_los,
               t_inf=t_inf,
               t_inc=t_inc,
+              t_detection=t_detection,
               inc=inc,
+              delay=delay,
               ind=ind))
+}
+
+# Ben's simulation
+nosocomial.simulation2 <- function(N, 
+                                   prob_los, 
+                                   prob_inc,
+                                   cutoff){
+  test.data<-data.frame(los=rep(NA,N), time.infected=rep(NA,N), time.symptoms=rep(NA,N), detected=rep(NA,N), proportion_of_infections=rep(NA,N))
+  for(i in 1:N){
+    test.data$los[i]<-sample(1:maxday, 1, replace=TRUE, prob=prob_los)
+    test.data$time.infected[i]<-ceiling(runif(1)*test.data$los[i])
+    inc.period<-sample(1:maxday, 1, replace=TRUE, prob=prob_inc)
+    test.data$time.symptoms[i]<-test.data$time.infected[i]+inc.period
+    test.data$detected[i]<- (test.data$time.symptoms[i] >= cutoff) & ((test.data$time.symptoms[i] <= test.data$los[i]))
+    test.data$proportion_of_infections[i] <- test.data$los[i]/discrete.meanlos
+    
+  }
+  detected<-sum(test.data$proportion_of_infections[test.data$detected])
+  not.detected<-sum(test.data$proportion_of_infections[!test.data$detected])
+  proportion.detected<-detected/(detected+not.detected)
+  return(proportion.detected)
 }
 
 # ================================================================= #
@@ -59,7 +90,7 @@ nosocomial.detection <- function(cutoff, inc_distr, los_distr){
   length_los <- length(los_distr) # max LOS
   mean_los <- sum((1:length_los)*los_distr)
   for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
-    pl <- los_prob[l]*l/mean_los # proportion of patients with LOS=l
+    pl <- los_distr[l]*l/mean_los # proportion of patients with LOS=l
     # pl <- los_distr[l]
     for(t in 1:(l-1)){ # loop over possible infection days
       sum_a <- sum(inc_distr[max((cutoff-t),1):(l-t)]) # possible values for incubation period
@@ -73,30 +104,33 @@ nosocomial.detection <- function(cutoff, inc_distr, los_distr){
 # ================================================================= #
 # Ben's function
 # ================================================================= #
-calc_prob_infection_meets_def_nosocomial<-function(cutoff, 
-                                                   los_vec, 
-                                                   inc_vec){
+calc_prob_infection_meets_def_nosocomial <- function(cutoff, 
+                                                     inc_vec,
+                                                     los_vec){
   # input -cutoff for definition of nosocomial infection (delay from admission to onset)
   # los_vec hold probabilities of los of 1 day, 2 days, etc
   # inc_vec holds probabilities incubation  period is 1, 2 day, etc
-  # function returns the probabiilty that a randomly infected in-patient in hospital 
+  # function returns the probabiilty that a randomly infected in-patient in hospital
   # will be counted as a noscomial case based on definition of X days
   total_prob<-0
   l<-length(los_vec)
   num_days_could_be_infected_for_given_latent_period<-0
   meanlos<- sum((1:l)*los_vec)
   for(i in cutoff:length(los_vec)){ #so loop over possible LoS to be a case
-    for(l in 1:(i-1)){  # loop over possible latent period 
+    for(l in 1:(i-1)){  # loop over possible latent period
       los<-i
       prob_los<-los_vec[i]
       p_i<-prob_los
       pi_i<- p_i*los/ meanlos # prob selecting a patient with given los to infect
-      # pi_i <- p_i
-      num_days_could_be_infected_for_given_latent_period<- i-cutoff +1
+      if(l<cutoff){
+        num_days_could_be_infected_for_given_latent_period<- i-cutoff +1
+      } else {
+        num_days_could_be_infected_for_given_latent_period<- max(0,i-cutoff - (l-cutoff))
+      }
       prob_infected_on_a_given_day_given_infected<-1/los
       prob_meeting_noso_definition<-pi_i*prob_infected_on_a_given_day_given_infected*num_days_could_be_infected_for_given_latent_period*inc_vec[l]
       total_prob<-total_prob+prob_meeting_noso_definition
-    }  
+    }
   }
   return(total_prob)
 }
