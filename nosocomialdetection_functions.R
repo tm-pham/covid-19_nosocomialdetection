@@ -88,17 +88,32 @@ nosocomial.simulation2 <- function(N,
 # cutoff = detection cutoff for definition of nosocomial cases
 # los_distr = probability distribution for LOS
 # inc_distr = probability distribution for incubation period
-nosocomial.detection <- function(cutoff, inc_distr, los_distr){
+nosocomial.detection <- function(cutoff, 
+                                 inc_distr, 
+                                 los_distr, 
+                                 delay_distr=NULL){
   res <- 0
   length_los <- length(los_distr) # max LOS
   mean_los <- sum((1:length_los)*los_distr)
-  for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
-    pl <- los_distr[l]*l/mean_los # proportion of patients with LOS=l
-    # pl <- los_distr[l]
-    for(t in 1:(l-1)){ # loop over possible infection days
-      sum_a <- sum(inc_distr[max((cutoff-t),1):(l-t)]) # possible values for incubation period
-      p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
-      res <- res + pl*p_inf_on_day_l*sum_a                
+  if(is.null(delay_distr)){
+    for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
+      pl <- los_distr[l]*l/mean_los # proportion of patients with LOS=l
+      for(t in 1:(l-1)){ # loop over possible infection days
+        sum_a <- sum(inc_distr[max((cutoff-t),1):(l-t)]) # possible values for incubation period
+        p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
+        res <- res + pl*p_inf_on_day_l*sum_a                
+      }
+    }
+  }else{
+    for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
+      pl <- los_distr[l]*l/mean_los # proportion of patients with LOS=l
+      for(t in 1:(l-1)){ # loop over possible infection days
+        for(d in 1:(min(max(l-t,1),length(delay_distr)))){
+          sum_a <- sum(inc_distr[max(cutoff-t-d,1):max(l-t-d,1)]) # possible values for incubation period
+          p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
+          res <- res + pl*p_inf_on_day_l*sum_a*delay_distr[d] 
+        }
+      }
     }
   }
   return(res)
