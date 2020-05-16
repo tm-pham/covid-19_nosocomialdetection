@@ -6,8 +6,6 @@ source(file="nosocomialdetection_functions.R")
 
 
 maxday<-50 
-cutoff <-10 # detection cutoff for definition of nosocomial cases
-
 # Probability distribution for incubation period
 p1<-1.621
 p2<-0.418
@@ -20,14 +18,26 @@ cum_prob_los <- pexp(1:maxday,1/meanlos)
 prob_los <- cum_prob_los-c(0,cum_prob_los[1:(maxday-1)])
 discrete.meanlos<-sum(prob_los*(1:maxday))
 
+cutoff <-10 # detection cutoff for definition of nosocomial cases
+
 # Mui's function
 nosocomial.detection(cutoff,prob_inc,prob_los)
 # Ben's function
 calc_prob_infection_meets_def_nosocomial(cutoff,prob_inc,prob_los)
 
-# Simulation
+# Mui's simulation
 sim <- nosocomial.simulation(n_max=10000,
                              los_distr=prob_los, 
                              inc_distr=prob_inc, 
                              cutoff=cutoff)
 sim$res
+
+# Ben's simulation
+nosocomial.simulation2(N=10000,
+                      prob_los=prob_los, 
+                      prob_inc=prob_inc, 
+                      cutoff=cutoff)
+
+
+
+

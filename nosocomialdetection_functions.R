@@ -26,17 +26,17 @@ nosocomial.simulation <- function(n_max=1000,
   t_los <- sample(1:length(los_distr), size=n_max, prob=los_distr, replace=TRUE)
   # Currently: all patients get infected
   # Infection is equally likely on each day in hospital
-  t_inf <- ceiling(runif(1)*t_los)
+  t_inf <- sapply(1:length(t_los), function(x) ceiling(runif(1)*t_los[x]))
   # Times for symptom onset according to inc_distr
   # Accounts for asymptomatic cases: incubation time = 10000
   if(sum(inc_distr)==1){
     inc <- sample(1:length(inc_distr), size=length(t_los), prob=inc_distr, replace=TRUE)
-  }else{
-    inc <- sample(c(1:length(inc_distr),10000), size=length(t_los), prob=c(inc_distr,1-sum(inc_distr)), replace=TRUE)
-  }
+  }else inc <- sample(c(1:length(inc_distr),10000), size=length(t_los), prob=c(inc_distr,1-sum(inc_distr)), replace=TRUE)
   t_inc <- t_inf + inc
   # Delay between symptom onset and study enrolment
-  delay <- sample(1:length(delay_distr),size=length(t_los),prob=delay_distr,replace=TRUE)
+  if(is.null(delay_distr)){
+    delay <- rep(0,length(t_los))
+  }else delay <- sample(1:length(delay_distr),size=length(t_los),prob=delay_distr,replace=TRUE)
   t_detection <- t_inc + delay
   # Patients with symptom onset before discharge
   ind_before_discharge <- which(t_detection<=t_los)
@@ -44,7 +44,10 @@ nosocomial.simulation <- function(n_max=1000,
   ind_after_cutoff <- which(t_detection>=cutoff)
   # Patients that meet all criteria above
   ind <- intersect(ind_before_discharge, ind_after_cutoff)
-  res <- length(ind)/length(t_los)
+  # Weight patients according to their length-of-stay
+  los_weighted <- unlist(sapply(1:length(t_los), function(x) rep(x,t_los[x])))
+  ind_res <- which(los_weighted%in%ind)
+  res <- length(ind_res)/length(los_weighted)
   return(list(res=res,
               t_los=t_los,
               t_inf=t_inf,
