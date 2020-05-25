@@ -36,7 +36,7 @@ nosocomial.simulation <- function(n_max=1000,
   # Delay between symptom onset and study enrolment
   if(is.null(delay_distr)){
     delay <- rep(0,length(t_los))
-  }else delay <- sample(1:length(delay_distr),size=length(t_los),prob=delay_distr,replace=TRUE)
+  }else delay <- sample(0:(length(delay_distr)-1),size=length(t_los),prob=delay_distr,replace=TRUE)
   t_detection <- t_inc + delay
   # Patients with symptom onset before discharge
   ind_before_discharge <- which(t_detection<=t_los)
@@ -108,8 +108,8 @@ nosocomial.detection <- function(cutoff,
     for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
       pl <- los_distr[l]*l/mean_los # proportion of patients with LOS=l
       for(t in 1:(l-1)){ # loop over possible infection days
-        for(d in 1:(min(max(l-t,1),length(delay_distr)))){
-          sum_a <- sum(inc_distr[max(cutoff-t-d,1):max(l-t-d,1)]) # possible values for incubation period
+        for(d in 1:(min(max(l-t+1,1),length(delay_distr)))){
+          sum_a <- sum(inc_distr[max(cutoff-t-(d-1),1):max(l-t-(d-1),1)]) # possible values for incubation period
           p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
           res <- res + pl*p_inf_on_day_l*sum_a*delay_distr[d] 
         }
