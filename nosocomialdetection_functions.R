@@ -195,6 +195,8 @@ distr.onset.to.discharge <- function(los_distr, inc_distr){
     }
     prob_distr <- c(prob_distr,temp)
   }
+  # Normalize since we condition on LoS >= incubation period
+  prob_distr <- prob_distr/sum(prob_distr)
   cum_distr <- sapply(1:length(prob_distr), function(x) sum(prob_distr[1:x]))
   return(list(prob_distr=prob_distr, cum_distr=cum_distr))
 }
