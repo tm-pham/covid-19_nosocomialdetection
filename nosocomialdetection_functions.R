@@ -36,7 +36,16 @@ nosocomial.simulation <- function(n_max=1000,
   # Delay between symptom onset and study enrolment
   if(is.null(delay_distr)){
     delay <- rep(0,length(t_los))
-  }else delay <- sample(0:(length(delay_distr)-1),size=length(t_los),prob=delay_distr,replace=TRUE)
+  }else{
+    onset_to_discharge_cum_distr <- distr.onset.to.discharge(los_distr,inc_distr)$cum_distr
+    len_delay <- min(length(delay_distr),length(onset_to_discharge_cum_distr))
+    norm_const <- 1/sum(delay_distr[1:len_delay]*(1-onset_to_discharge_cum_distr[1:len_delay]))
+    # Counterfactual delay distribution (delay from symptom onset to study enrolment)
+    # that would have occurred if there was no discharge
+    cf_delay_distr <- norm_const*delay_distr[1:len_delay]*(1-onset_to_discharge_cum_distr[1:len_delay])
+    
+    delay <- sample(0:(length(cf_delay_distr)-1),size=length(t_los),prob=cf_delay_distr,replace=TRUE)
+  }
   t_detection <- t_inc + delay
   # Patients with symptom onset before discharge
   ind_before_discharge <- which(t_detection<=t_los)
@@ -105,18 +114,24 @@ nosocomial.detection <- function(cutoff,
       }
     }
   }else{
+    onset_to_discharge_cum_distr <- distr.onset.to.discharge(los_distr,inc_distr)$cum_distr
+    len_delay <- min(length(delay_distr),length(onset_to_discharge_cum_distr))
+    norm_const <- 1/sum(delay_distr[1:len_delay]*(1-onset_to_discharge_cum_distr[1:len_delay]))
+    # Counterfactual delay distribution (delay from symptom onset to study enrolment)
+    # that would have occurred if there was no discharge
+    cf_delay_distr <- norm_const*delay_distr[1:len_delay]*(1-onset_to_discharge_cum_distr[1:len_delay])
     for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
       pl <- los_distr[l]*l/mean_los # proportion of patients with LOS=l
       for(t in 1:(l-1)){ # loop over possible infection days
         # d = index for delay_distr 
         # maximum delay = length-of-stay - time of infection or maximum delay in delay distr (whatever is smaller)
         # + 1/- 1 due to indices in R starting at 1
-        for(d in 1:(min(l-t+1,length(delay_distr)))){
+        for(d in 1:(min(l-t+1,length(cf_delay_distr)))){
           # Note: Assume that min(incubation period)=1, hence 
           # if cutoff-t-(d-1)=0, then take 1
           sum_a <- sum(inc_distr[max(cutoff-t-(d-1),1):(l-t-(d-1))]) # possible values for incubation period
           p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
-          res <- res + pl*p_inf_on_day_l*sum_a*delay_distr[d] 
+          res <- res + pl*p_inf_on_day_l*sum_a*cf_delay_distr[d] 
         }
       }
     }
@@ -158,22 +173,19 @@ calc_prob_infection_meets_def_nosocomial <- function(cutoff,
   return(total_prob)
 }
 
-# ================================================================= #
-# Probability and cumulative distribution of time from symptom 
-# onset until discharge
-# ================================================================= #
-# Note that it does not sum to 1 because it does not return 
-# negative values (inc > los)
-# Note that prob_distr[1] corresponds to time from symptom onset 
-# to discharge = 0
+# ============================================================================ #
+# Probability&cumulative distribution of time from symptom onset till discharge
+# ============================================================================ #
+# Note that it does not sum to 1 because it does not return negative values 
+# (inc > los)
+# Note: prob_distr[1] corresponds to time from symptom onset to discharge = 0
 # INPUT
 # los_distr = Probability distribution of length-of-stay
 # inc_distr = Probability distribution of incubation period
 # OUTPUT
-# prob_distr = Probability distribution of time of symptom onset to
-#              discharge
+# prob_distr = Probability distribution of time of symptom onset to discharge
 # cum_distr = Corresponding cumulative distribution
-# ================================================================= #
+# ============================================================================ #
 distr.onset.to.discharge <- function(los_distr, inc_distr){
   prob_distr<- NULL
   for(z in 0:length(los_distr)){
@@ -188,6 +200,8 @@ distr.onset.to.discharge <- function(los_distr, inc_distr){
 }
 
 
+
+
 # ================================================================= #
 # Helper functions (not used for now)
 # ================================================================= #
@@ -195,7 +209,7 @@ distr.onset.to.discharge <- function(los_distr, inc_distr){
 exp.times <- function(t_end, rate, seed=NULL){
   if(!is.null(seed)) set.seed(seed)
   t <- t_temp <- NULL
-  t0 <- t_max <- 0
+  t_max <- 0
   while(t_max< t_end){
     temp <- rexp(1, rate=rate)
     t_temp <- c(t_temp, temp)
@@ -213,7 +227,7 @@ exp.times <- function(t_end, rate, seed=NULL){
 arrival.times<- function(t_end, arrival_distr, seed=12345){
   set.seed(seed)
   t <- t_temp <- NULL
-  t0 <- t_max <- 0
+  t_max <- 0
   while(t_max< t_end){
     temp <- sample(1:length(arrival_distr), size=1, prob=arrival_distr)
     t_temp <- c(t_temp, temp)
