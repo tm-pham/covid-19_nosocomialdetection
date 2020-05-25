@@ -27,7 +27,7 @@ prob_delay[values_delay+1] <- tab_delay/sum(tab_delay)
 prob_delay <- c(1,rep(0,19))
 
 # Probality distribution for LOS
-meanlos <- 7
+meanlos <- 5
 cum_prob_los <- pexp(1:maxday,1/meanlos)
 prob_los <- cum_prob_los-c(0,cum_prob_los[1:(maxday-1)])
 discrete.meanlos<-sum(prob_los*(1:maxday))
@@ -35,7 +35,7 @@ discrete.meanlos<-sum(prob_los*(1:maxday))
 cutoff <-10 # detection cutoff for definition of nosocomial cases
 
 # Mui's function
-nosocomial.detection(cutoff,prob_inc,prob_los)
+nosocomial.detection(cutoff,prob_inc,prob_los,delay_distr =NULL)
 nosocomial.detection(cutoff,prob_inc,prob_los,prob_delay)
 # Ben's function
 calc_prob_infection_meets_def_nosocomial(cutoff,prob_inc,prob_los)
@@ -44,7 +44,7 @@ calc_prob_infection_meets_def_nosocomial(cutoff,prob_inc,prob_los)
 sim_delay <- nosocomial.simulation(n_max=10000,
                              los_distr=prob_los, 
                              inc_distr=prob_inc, 
-                             delay_distr=prob_delay,
+                             delay_distr=NULL,
                              cutoff=cutoff)
 sim_delay$res
 
