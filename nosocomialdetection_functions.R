@@ -159,6 +159,36 @@ calc_prob_infection_meets_def_nosocomial <- function(cutoff,
 }
 
 # ================================================================= #
+# Probability and cumulative distribution of time from symptom 
+# onset until discharge
+# ================================================================= #
+# Note that it does not sum to 1 because it does not return 
+# negative values (inc > los)
+# Note that prob_distr[1] corresponds to time from symptom onset 
+# to discharge = 0
+# INPUT
+# los_distr = Probability distribution of length-of-stay
+# inc_distr = Probability distribution of incubation period
+# OUTPUT
+# prob_distr = Probability distribution of time of symptom onset to
+#              discharge
+# cum_distr = Corresponding cumulative distribution
+# ================================================================= #
+distr.onset.to.discharge <- function(los_distr, inc_distr){
+  prob_distr<- NULL
+  for(z in 0:length(los_distr)){
+    temp <- 0
+    for(i in 1:min(length(los_distr)-z, length(inc_distr))){
+      temp <- temp + inc_distr[i]*los_distr[z+i]
+    }
+    prob_distr <- c(prob_distr,temp)
+  }
+  cum_distr <- sapply(1:length(prob_distr), function(x) sum(prob_distr[1:x]))
+  return(list(prob_distr=prob_distr, cum_distr=cum_distr))
+}
+
+
+# ================================================================= #
 # Helper functions (not used for now)
 # ================================================================= #
 # Generate exponential times (for patient arrival times)
