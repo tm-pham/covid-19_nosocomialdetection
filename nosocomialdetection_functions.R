@@ -112,7 +112,9 @@ nosocomial.detection <- function(cutoff,
         # maximum delay = length-of-stay - time of infection or maximum delay in delay distr (whatever is smaller)
         # + 1/- 1 due to indices in R starting at 1
         for(d in 1:(min(l-t+1,length(delay_distr)))){
-          sum_a <- sum(inc_distr[max(cutoff-t-(d-1),1):max(l-t-(d-1),1)]) # possible values for incubation period
+          # Note: Assume that min(incubation period)=1, hence 
+          # if cutoff-t-(d-1)=0, then take 1
+          sum_a <- sum(inc_distr[max(cutoff-t-(d-1),1):(l-t-(d-1))]) # possible values for incubation period
           p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
           res <- res + pl*p_inf_on_day_l*sum_a*delay_distr[d] 
         }
