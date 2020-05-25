@@ -108,7 +108,10 @@ nosocomial.detection <- function(cutoff,
     for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
       pl <- los_distr[l]*l/mean_los # proportion of patients with LOS=l
       for(t in 1:(l-1)){ # loop over possible infection days
-        for(d in 1:(min(max(l-t+1,1),length(delay_distr)))){
+        # d = index for delay_distr 
+        # maximum delay = length-of-stay - time of infection or maximum delay in delay distr (whatever is smaller)
+        # + 1/- 1 due to indices in R starting at 1
+        for(d in 1:(min(l-t+1,length(delay_distr)))){
           sum_a <- sum(inc_distr[max(cutoff-t-(d-1),1):max(l-t-(d-1),1)]) # possible values for incubation period
           p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
           res <- res + pl*p_inf_on_day_l*sum_a*delay_distr[d] 
