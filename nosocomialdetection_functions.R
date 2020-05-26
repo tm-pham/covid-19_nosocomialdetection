@@ -38,12 +38,11 @@ nosocomial.simulation <- function(n_max=1000,
     delay <- rep(0,length(t_los))
   }else{
     onset_to_discharge_cum_distr <- distr.onset.to.discharge(los_distr,inc_distr)$cum_distr
-    len_delay <- min(length(delay_distr),length(onset_to_discharge_cum_distr))
-    norm_const <- 1/sum(delay_distr[1:len_delay]*(1-onset_to_discharge_cum_distr[1:len_delay]))
+    len_delay <- min(length(delay_distr),length(onset_to_discharge_cum_distr)-1)
     # Counterfactual delay distribution (delay from symptom onset to study enrolment)
     # that would have occurred if there was no discharge
-    cf_delay_distr <- norm_const*delay_distr[1:len_delay]*(1-onset_to_discharge_cum_distr[1:len_delay])
-    
+    cf_delay_distr <- delay_distr[1:len_delay]/(1-onset_to_discharge_cum_distr[1:len_delay])
+    cf_delay_distr <- cf_delay_distr/sum(cf_delay_distr)
     delay <- sample(0:(length(cf_delay_distr)-1),size=length(t_los),prob=cf_delay_distr,replace=TRUE)
   }
   t_detection <- t_inc + delay
@@ -115,11 +114,11 @@ nosocomial.detection <- function(cutoff,
     }
   }else{
     onset_to_discharge_cum_distr <- distr.onset.to.discharge(los_distr,inc_distr)$cum_distr
-    len_delay <- min(length(delay_distr),length(onset_to_discharge_cum_distr))
-    norm_const <- 1/sum(delay_distr[1:len_delay]*(1-onset_to_discharge_cum_distr[1:len_delay]))
+    len_delay <- min(length(delay_distr),length(onset_to_discharge_cum_distr)-1)
     # Counterfactual delay distribution (delay from symptom onset to study enrolment)
     # that would have occurred if there was no discharge
-    cf_delay_distr <- norm_const*delay_distr[1:len_delay]*(1-onset_to_discharge_cum_distr[1:len_delay])
+    cf_delay_distr <- delay_distr[1:len_delay]/(1-onset_to_discharge_cum_distr[1:len_delay])
+    cf_delay_distr <- cf_delay_distr/sum(cf_delay_distr)
     for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
       pl <- los_distr[l]*l/mean_los # proportion of patients with LOS=l
       for(t in 1:(l-1)){ # loop over possible infection days
