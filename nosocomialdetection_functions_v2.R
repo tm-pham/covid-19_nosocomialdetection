@@ -10,7 +10,7 @@
 # los_distr = probability distribution for LOS
 # inc_distr = probability distribution for incubation period
 # delay_distr = probability distribution for the delay between symptom onset 
-# and date of test (is empty/null, then no delay is considered)
+#               and date of test (is empty/null, then no delay is considered)
 nosocomial.detection <- function(los_distr, 
                                  inc_distr,
                                  cutoff,
