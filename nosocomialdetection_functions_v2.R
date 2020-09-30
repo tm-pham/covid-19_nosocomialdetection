@@ -9,7 +9,8 @@
 # cutoff = detection cutoff for definition of nosocomial cases
 # los_distr = probability distribution for LOS
 # inc_distr = probability distribution for incubation period
-
+# delay_distr = probability distribution for the delay between symptom onset 
+# and date of test (is empty/null, then no delay is considered)
 nosocomial.detection <- function(los_distr, 
                                  inc_distr,
                                  cutoff,
@@ -17,7 +18,7 @@ nosocomial.detection <- function(los_distr,
   res <- 0
   length_los <- max(los_distr[,1]) # max LOS
   mean_los <- sum(los_distr[,1]*los_distr[,2])
-  if(is.null(delay_distr)){
+  if(is.null(delay_distr)){ # Calculations for CO-CIN
     for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
       pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
       for(t in 1:(l-1)){ # loop over possible infection days
@@ -26,7 +27,7 @@ nosocomial.detection <- function(los_distr,
         res <- res + pl*p_inf_on_day_l*sum_a   
       }
     }
-  }else{
+  }else{ # Calculations for SUS
     for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
       pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
       for(t in 1:(l-1)){ # loop over possible infection days
