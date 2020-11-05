@@ -18,7 +18,7 @@ nosocomial.detection <- function(los_distr,
   res <- 0
   length_los <- max(los_distr[,1]) # max LOS
   mean_los <- sum(los_distr[,1]*los_distr[,2])
-  if(is.null(delay_distr)){ # Calculations for CO-CIN
+  if(is.null(delay_distr)){ ##### Calculations for CO-CIN
     for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
       pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
       for(t in 1:(l-1)){ # loop over possible infection days
@@ -27,14 +27,14 @@ nosocomial.detection <- function(los_distr,
         res <- res + pl*p_inf_on_day_l*sum_a   
       }
     }
-  }else{ # Calculations for SUS
+  }else{ ##### Calculations for SUS
     for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
       pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
       for(t in 1:(l-1)){ # loop over possible infection days
-        # d = index for delay_distr 
+        # d = index for delay_distr   
         # maximum delay = length-of-stay - time of infection or maximum delay in delay distr (whatever is smaller)
         # + 1/- 1 due to indices in R starting at 1
-        for(d in 1:(min(l-t+1,length(delay_distr)))){
+        for(d in 1:(min(l-t,length(delay_distr)))){
           # Note: Assume that min(incubation period)=1, hence 
           # if cutoff-t-(d-1)=0, then take 1
           sum_a <- sum(inc_distr[max(cutoff-t-(d-1),1):(l-t-(d-1))]) # possible values for incubation period
@@ -72,8 +72,8 @@ nosocomial.simulation <- function(n_max=1000,
                                   cutoff=10, 
                                   seed=12345){
   set.seed(seed)
-  # 1. Draw length of stay for each patients (los_distr)
-  t_los <- sample(1:length(los_distr), size=n_max, prob=los_distr, replace=TRUE)
+  # 1. Draw length of stay for each patient (los_distr)
+  t_los <- sample(los_distr[,1], size=n_max, prob=los_distr[,2], replace=TRUE)
   # 2. Draw an infection time for each patient
   # Currently: all patients get infected
   # Infection is equally likely on each day in hospital
