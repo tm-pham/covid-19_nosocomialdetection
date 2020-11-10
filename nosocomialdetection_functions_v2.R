@@ -62,20 +62,21 @@ nosocomial.detection <- function(los_distr,
           # Note: Assume that min(incubation period)=1, hence 
           # if cutoff-t-(d-1)=0, then take 1
           sum_res <- sum(inc_distr[max(cutoff-t-(d-1),1):(l-t-(d-1))]) # possible values for incubation period
-          res <- res + pl*p_inf_on_day_l*sum_res*delay_distr[d] 
+          res <- res + pl*p_inf_on_day_l*sum_res*delay_distr[[d]] 
         }
       }
     }
     for(l in 2:length_los){# Proportion with symptom onset after discharge
       pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
       p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
-      for(t in 1:(l-1)){
-        sum_ad <- sum(inc_distr[(l-t+1):length(inc_distr)])
-        res_ad <- res_ad + pl*p_inf_on_day_l*sum_ad
+      for(t in 1:l){
+        for(d in 1:min((l-t+1), length(delay_distr))){
+          sum_ad <- sum(inc_distr[(l-t-(d-1)+1):length(inc_distr)])
+          res_ad <- res_ad + pl*p_inf_on_day_l*sum_ad*delay_distr[[d]] 
+        }
       }
-      # Patients that get infected on day of discharge
-      res_ad <- res_ad + pl*p_inf_on_day_l
     }
+    res_bc <- 1-res-res_ad
   }
   return(list(res_bc = res_bc,
               res = res,

@@ -28,7 +28,7 @@ sum(prob_los[,1]*prob_los[,2])
 
 # =========================================================================== #
 # Proportion detected in CO-CIN
-test <- nosocomial.detection(prob_los, prob_inc, cutoff=5)
+test <- nosocomial.detection(prob_los, prob_inc, cutoff=1)
 test
 
 # Probability distribution for delay between symptom onset and getting tested
@@ -38,6 +38,6 @@ prob_delay <- table(distr_delay)/sum(distr_delay)
 
 # =========================================================================== #
 # Proportion detected in SUS
-nosocomial.detection(prob_los, prob_inc, cutoff, prob_delay)
+nosocomial.detection(prob_los, prob_inc, 5, prob_delay)
 
 
