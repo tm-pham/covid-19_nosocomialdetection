@@ -11,25 +11,49 @@
 # inc_distr = probability distribution for incubation period
 # delay_distr = probability distribution for the delay between symptom onset 
 #               and date of test (is empty/null, then no delay is considered)
+# OUTPUT
+# res = proportion detected
+# res_ad = proportion with symptom onset after discharge
+# res_bc = proportion with symptom onset before cutoff (1-res-res_ad)
 nosocomial.detection <- function(los_distr, 
                                  inc_distr,
                                  cutoff,
                                  delay_distr=NULL){
-  res <- 0
+  if(cutoff<2){
+    print("Cutoff has to be at least 2.")
+    return(0)
+  }
+  res_bc <- res <- res_ad <- 0
   length_los <- max(los_distr[,1]) # max LOS
   mean_los <- sum(los_distr[,1]*los_distr[,2])
   if(is.null(delay_distr)){ ##### Calculations for CO-CIN
-    for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
-      pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
-      for(t in 1:(l-1)){ # loop over possible infection days
-        sum_a <- sum(inc_distr[max((cutoff-t),1):(l-t)]) # possible values for incubation period
+    if(cutoff<length_los){
+      for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
+        pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
         p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
-        res <- res + pl*p_inf_on_day_l*sum_a   
+        for(t in 1:(l-1)){# Proportion detected
+          # Symptom onset after cutoff and before discharge 
+          sum_res <- sum(inc_distr[max((cutoff-t),1):(l-t)]) 
+          res <- res + pl*p_inf_on_day_l*sum_res
+        }
       }
     }
-  }else{ ##### Calculations for SUS
-    for(l in cutoff:length_los){ # loop over possible LOS (>= cutoff)
+    for(l in 2:length_los){# Proportion with symptom onset after discharge
       pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
+      p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
+      for(t in 1:(l-1)){
+        sum_ad <- sum(inc_distr[(l-t+1):length(inc_distr)])
+        res_ad <- res_ad + pl*p_inf_on_day_l*sum_ad
+      }
+      # Patients that get infected on day of discharge
+      res_ad <- res_ad + pl*p_inf_on_day_l
+    }
+    # Proportion with symptom onset before cutoff 
+    res_bc <- 1 - res - res_ad 
+  }else{ ##### Calculations for SUS
+    for(l in cutoff:length_los){ # Proportion
+      pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
+      p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
       for(t in 1:(l-1)){ # loop over possible infection days
         # d = index for delay_distr   
         # maximum delay = length-of-stay - time of infection or maximum delay in delay distr (whatever is smaller)
@@ -37,14 +61,25 @@ nosocomial.detection <- function(los_distr,
         for(d in 1:(min(l-t,length(delay_distr)))){
           # Note: Assume that min(incubation period)=1, hence 
           # if cutoff-t-(d-1)=0, then take 1
-          sum_a <- sum(inc_distr[max(cutoff-t-(d-1),1):(l-t-(d-1))]) # possible values for incubation period
-          p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
-          res <- res + pl*p_inf_on_day_l*sum_a*delay_distr[d] 
+          sum_res <- sum(inc_distr[max(cutoff-t-(d-1),1):(l-t-(d-1))]) # possible values for incubation period
+          res <- res + pl*p_inf_on_day_l*sum_res*delay_distr[d] 
         }
       }
     }
+    for(l in 2:length_los){# Proportion with symptom onset after discharge
+      pl <- los_distr[which(los_distr[,1]==l),2]*l/mean_los # proportion of patients with LOS=l
+      p_inf_on_day_l <- 1/l # Assume infection is equally likely on each day
+      for(t in 1:(l-1)){
+        sum_ad <- sum(inc_distr[(l-t+1):length(inc_distr)])
+        res_ad <- res_ad + pl*p_inf_on_day_l*sum_ad
+      }
+      # Patients that get infected on day of discharge
+      res_ad <- res_ad + pl*p_inf_on_day_l
+    }
   }
-  return(res)
+  return(list(res_bc = res_bc,
+              res = res,
+              res_ad = res_ad))
 }
 
 
@@ -93,13 +128,27 @@ nosocomial.simulation <- function(n_max=1000,
   # Patients that meet all criteria above
   ind <- intersect(ind_before_discharge, ind_after_cutoff)
   # Weight patients according to their length-of-stay
-  los_weighted <- unlist(sapply(1:length(t_los), function(x) rep(x,t_los[x])))
+  los_weighted <- unlist(sapply(1:length(t_los), function(x) rep(x,length(which(t_los==x)))))
   ind_res <- which(los_weighted%in%ind)
   prop_detected <- length(ind_res)/length(los_weighted)
+  p_1 <- length(ind)/n_max
+  # Patients with symptom onset after discharge
+  ind_after_discharge <- intersect(which(t_inc > t_los), which(t_los>1))
+  ind_weighted_ad <- which(los_weighted%in%ind_after_discharge)
+  prop_after_discharge <- length(ind_weighted_ad)/length(los_weighted)
+  p_2 <- length(ind_after_discharge)/n_max
+  # Patients with symptom onset before cutoff
+  ind_before_cutoff <- intersect(which(t_inc < cutoff), which(t_inc < t_los))
+  ind_weighted_c <- which(los_weighted%in%ind_before_cutoff)
+  prop_before_cutoff <- length(ind_weighted_c)/length(los_weighted)
+  p_3 <- length(ind_before_cutoff)/n_max
   return(list(t_los = t_los, 
               t_inf = t_inf,
               t_inc = t_inc,
-              prop_detected = prop_detected))
+              prop_detected = prop_detected, 
+              prop_after_discharge = prop_after_discharge,
+              prop_before_cutoff = prop_before_cutoff, 
+              p_1=p_1, p_2=p_2, p_3=p_3))
 }
 
 # Ben's simulation
@@ -109,7 +158,7 @@ nosocomial.simulation2 <- function(N,
                                    cutoff){
   test.data<-data.frame(los=rep(NA,N), time.infected=rep(NA,N), time.symptoms=rep(NA,N), detected=rep(NA,N), proportion_of_infections=rep(NA,N))
   for(i in 1:N){
-    test.data$los[i]<-sample(1:maxday, 1, replace=TRUE, prob=prob_los)
+    test.data$los[i]<-sample(1:length(prob_los), 1, replace=TRUE, prob=prob_los)
     test.data$time.infected[i]<-ceiling(runif(1)*test.data$los[i])
     inc.period<-sample(1:maxday, 1, replace=TRUE, prob=prob_inc)
     test.data$time.symptoms[i]<-test.data$time.infected[i]+inc.period
